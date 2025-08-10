@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+
+# Data & models
+data/external/*
+data/interim/*
+data/processed/*
+models/*
+!data/raw/.gitkeep
+
+# Environnements / archives
+.venv/
+env/
+*.zip
