@@ -1,22 +1,23 @@
-import streamlit as st
 from pathlib import Path
+import streamlit as st
 
-LANG_CODES  = ["FR", "EN", "ES", "IT", "ZH"]
-LANG_LABELS = ["Français", "English", "Español", "Italiano", "中文"]
+CSS_PATH = Path("assets/styles.css")
+LANGS = ["FR","EN","ES","IT","ZH"]  # pas de doublon, "IT" (pas "IL")
 
-def use_global_css(path: str = "assets/styles.css") -> None:
-    """Charge le CSS global sur toutes les pages."""
-    p = Path(path)
-    if p.exists():
-        st.markdown(f"<style>{p.read_text(encoding='utf-8')}</style>", unsafe_allow_html=True)
+def use_global_css():
+    try:
+        css = CSS_PATH.read_text(encoding="utf-8")
+        st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
+    except Exception as e:
+        st.write(f"[styles.css introuvable] {e}")
 
-def get_lang() -> str:
-    """Affiche le sélecteur dans la sidebar et renvoie le code langue."""
+def get_lang():
     if "lang" not in st.session_state:
         st.session_state["lang"] = "FR"
     with st.sidebar:
-        st.markdown("### Langue")
-        idx_default = LANG_CODES.index(st.session_state["lang"])
-        label = st.selectbox("", LANG_LABELS, index=idx_default, label_visibility="collapsed")
-        st.session_state["lang"] = LANG_CODES[LANG_LABELS.index(label)]
+        st.markdown("### Langue / Language")
+        choice = st.selectbox("UI Language", LANGS, index=LANGS.index(st.session_state["lang"]))
+        st.session_state["lang"] = choice
+        # badge build pour vérifier que le bon code tourne
+        st.caption("build: ui-v1.0")
     return st.session_state["lang"]
