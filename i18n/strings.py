@@ -1,43 +1,77 @@
-LANGS = ["FR","EN","ES","IT","ZH"]
-
-STRINGS = {
-    "brand": {
-        "FR": "SmartRisk Pro — Notation Crédit",
-        "EN": "SmartRisk Pro — Credit Scoring",
-        "ES": "SmartRisk Pro — Calificación de Crédito",
-        "IT": "SmartRisk Pro — Valutazione del Credito",
-        "ZH": "SmartRisk Pro — 信用评分",
-    },
-    "subtitle": {
-        "FR": "Scoring en temps réel • Explications • Tableau de bord • Seuil orienté profit • Multilingue",
-        "EN": "Real-time scoring • Explainability • Dashboard • Profit-oriented threshold • Multilingual",
-        "ES": "Scoring en tiempo real • Explicabilidad • Tablero • Umbral orientado al beneficio • Multilingüe",
-        "IT": "Scoring in tempo reale • Spiegabilità • Dashboard • Soglia orientata al profitto • Multilingue",
-        "ZH": "实时评分 • 可解释性 • 仪表盘 • 利润阈值 • 多语言",
-    },
-    "home_eda": {
-        "FR": "Explorer les distributions, corrélations et valeurs manquantes du dataset.",
-        "EN": "Explore distributions, correlations and missing values of the dataset.",
-        "ES": "Explora distribuciones, correlaciones y valores faltantes del conjunto de datos.",
-        "IT": "Esplora distribuzioni, correlazioni e valori mancanti del dataset.",
-        "ZH": "探索数据集的分布、相关性和缺失值。",
-    },
-    "home_score": {
-        "FR": "Scorer un individu, obtenir la probabilité de défaut et l’explication des facteurs clés.",
-        "EN": "Score an individual, get default probability and key-factor explanations.",
-        "ES": "Califica a un individuo, obtén la probabilidad de incumplimiento y explicaciones de factores clave.",
-        "IT": "Valuta un individuo, ottieni la probabilità di default e le spiegazioni dei fattori chiave.",
-        "ZH": "对个体评分，获得违约概率和关键因素解释。",
-    },
-    "author": {
-        "FR": "Projet réalisé par Ivan NFINDA",
-        "EN": "Project by Ivan NFINDA",
-        "ES": "Proyecto de Ivan NFINDA",
-        "IT": "Progetto di Ivan NFINDA",
-        "ZH": "项目作者 Ivan NFINDA",
-    },
-}
-
-def tr(key: str, lang: str) -> str:
-    lang = lang if lang in LANGS else "EN"
-    return STRINGS.get(key, {}).get(lang, STRINGS.get(key, {}).get("EN",""))
+I18N.update({
+  "FR": {
+    "nav_psi":"Qualité des données & Drift (PSI)",
+    "psi_intro":"Comparaison du jeu courant au baseline d'entraînement pour détecter le drift (PSI) et les problèmes qualité.",
+    "psi_missing_base":"Baseline PSI introuvable. Ré-entraînez (src/train.py) pour générer models/baseline_sample.parquet.",
+    "psi_upload":"Jeu courant (CSV, mêmes colonnes numériques que le training)",
+    "psi_hint":"Chargez un fichier pour lancer l'analyse.",
+    "psi_no_common":"Aucune colonne numérique commune entre votre fichier et le baseline. Vérifiez le schéma et les noms de colonnes.",
+    "psi_quality":"Qualité des données",
+    "download_quality":"Télécharger rapport qualité (CSV)",
+    "download_psi":"Télécharger rapport PSI (CSV)",
+    "psi_strong":"Drift fort sur : ",
+    "psi_watch":"Drift à surveiller sur : ",
+    "psi_ok":"Aucun drift significatif (PSI < 0.1)",
+    "psi_rules":"Règles usuelles PSI : < 0.1 OK, 0.1–0.25 Alerte, > 0.25 Fort."
+  },
+  "EN": {
+    "nav_psi":"Data Quality & Drift (PSI)",
+    "psi_intro":"Compare current data to training baseline to detect drift (PSI) and quality issues.",
+    "psi_missing_base":"Missing PSI baseline. Retrain (src/train.py) to create models/baseline_sample.parquet.",
+    "psi_upload":"Current dataset (CSV, same numeric columns as training)",
+    "psi_hint":"Upload a file to start the analysis.",
+    "psi_no_common":"No common numeric columns with the baseline. Check schema and column names.",
+    "psi_quality":"Data quality",
+    "download_quality":"Download quality report (CSV)",
+    "download_psi":"Download PSI report (CSV)",
+    "psi_strong":"Strong drift on: ",
+    "psi_watch":"Drift to watch on: ",
+    "psi_ok":"No significant drift (PSI < 0.1)",
+    "psi_rules":"PSI rules: <0.1 OK, 0.1–0.25 Watch, >0.25 Strong."
+  },
+  "ES": {
+    "nav_psi":"Calidad de datos y Deriva (PSI)",
+    "psi_intro":"Compara datos actuales con el baseline de entrenamiento para detectar deriva (PSI) y problemas de calidad.",
+    "psi_missing_base":"Falta el baseline de PSI. Reentrena (src/train.py) para crear models/baseline_sample.parquet.",
+    "psi_upload":"Conjunto actual (CSV, mismas columnas numéricas que el entrenamiento)",
+    "psi_hint":"Sube un archivo para iniciar el análisis.",
+    "psi_no_common":"No hay columnas numéricas comunes con el baseline. Verifica el esquema y los nombres.",
+    "psi_quality":"Calidad de datos",
+    "download_quality":"Descargar informe de calidad (CSV)",
+    "download_psi":"Descargar informe PSI (CSV)",
+    "psi_strong":"Deriva fuerte en: ",
+    "psi_watch":"Deriva a vigilar en: ",
+    "psi_ok":"Sin deriva significativa (PSI < 0.1)",
+    "psi_rules":"Reglas PSI: <0.1 OK, 0.1–0.25 Aviso, >0.25 Fuerte."
+  },
+  "IT": {
+    "nav_psi":"Qualità dati & Drift (PSI)",
+    "psi_intro":"Confronta i dati correnti con il baseline di training per rilevare drift (PSI) e problemi di qualità.",
+    "psi_missing_base":"Baseline PSI mancante. Riesegui il training (src/train.py) per creare models/baseline_sample.parquet.",
+    "psi_upload":"Dataset corrente (CSV, stesse colonne numeriche del training)",
+    "psi_hint":"Carica un file per avviare l'analisi.",
+    "psi_no_common":"Nessuna colonna numerica in comune con il baseline. Controlla schema e nomi.",
+    "psi_quality":"Qualità dei dati",
+    "download_quality":"Scarica report qualità (CSV)",
+    "download_psi":"Scarica report PSI (CSV)",
+    "psi_strong":"Drift forte su: ",
+    "psi_watch":"Drift da monitorare su: ",
+    "psi_ok":"Nessun drift significativo (PSI < 0.1)",
+    "psi_rules":"Regole PSI: <0.1 OK, 0.1–0.25 Allerta, >0.25 Forte."
+  },
+  "ZH": {
+    "nav_psi":"数据质量与漂移 (PSI)",
+    "psi_intro":"将当前数据与训练基线对比，以检测漂移（PSI）和质量问题。",
+    "psi_missing_base":"缺少PSI基线。请重新训练（src/train.py）以生成 models/baseline_sample.parquet。",
+    "psi_upload":"当前数据集（CSV，与训练相同的数值列）",
+    "psi_hint":"上传文件开始分析。",
+    "psi_no_common":"与基线没有共同的数值列。请检查 schema 和列名。",
+    "psi_quality":"数据质量",
+    "download_quality":"下载质量报告（CSV）",
+    "download_psi":"下载PSI报告（CSV）",
+    "psi_strong":"强漂移：",
+    "psi_watch":"需关注的漂移：",
+    "psi_ok":"无显著漂移（PSI < 0.1）",
+    "psi_rules":"PSI规则：<0.1 正常，0.1–0.25 关注，>0.25 强漂移。"
+  }
+})
