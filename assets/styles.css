@@ -1,53 +1,18 @@
-/* Layout général */
-.block-container { max-width: 1200px; padding-top: 1.2rem; }
-header[data-testid="stHeader"] { background: transparent; }
+/* Layout de base */
+:root{--card-bg:#ffffff;--card-bd:#e6e7eb;--muted:#6b7280}
+.block-container{padding-top:1.2rem;padding-bottom:2rem;max-width:1200px}
 
-/* Titres */
-h1, h2, h3, h4 { letter-spacing: .2px; }
-h1 { font-weight: 800; }
-h2 { font-weight: 700; }
+/* Titre de pages */
+h1{font-size:1.8rem;font-weight:800;margin:.2rem 0 1rem}
+h2{font-size:1.2rem;font-weight:700;margin:1rem 0 .6rem}
 
-/* Hero section */
-.hero {
-  border-radius: 24px;
-  padding: 48px;
-  background:
-    radial-gradient(900px 520px at 0% -10%, #eef4ff 0%, transparent 60%),
-    radial-gradient(900px 520px at 120% 0%, #fff5ec 0%, transparent 60%),
-    linear-gradient(135deg, #0B72E70D, #22c1c30D);
-  border: 1px solid #e9eef8;
-}
-.hero .title {
-  font-size: 3rem; line-height: 1.1; margin: 0 0 6px 0;
-  background: linear-gradient(90deg, #0B72E7, #22c1c3);
-  -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 800;
-}
-.hero .sub { font-size: 1rem; opacity: .85; margin-bottom: 6px; }
+/* Cartes et tableaux */
+.card{background:var(--card-bg);border:1px solid var(--card-bd);border-radius:16px;padding:16px;margin:6px 0;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+thead tr th{background:#f8fafc}
 
-/* Badges */
-.badges span{
-  display:inline-block; margin-right:10px; margin-top:10px; padding:6px 10px;
-  border-radius: 999px; font-size:.9rem; background:#F6F8FB; border:1px solid #E7EDF6;
-}
+/* Boutons */
+.stButton>button{border-radius:12px;padding:.5rem 1rem;font-weight:700;border:1px solid #d1d5db}
 
-/* Cards */
-.card {
-  border-radius: 16px; padding: 16px; border:1px solid #eef2f7; background:#fff;
-  box-shadow: 0 10px 24px rgba(20,20,20,.06);
-}
-
-/* CTA */
-.cta { display:flex; gap:10px; margin-top:16px; flex-wrap: wrap; }
-.cta a {
-  text-decoration:none; padding:10px 14px; border-radius:10px; font-weight:700;
-  border:1px solid #0B72E722; background:#0B72E710; color:#0B72E7;
-}
-.cta a.primary { background:#0B72E7; color:#fff; border-color:#0B72E7; }
-
-/* Sidebar */
-[data-testid="stSidebar"] {
-  border-right: 1px solid #eef2f7;
-}
 /* Alerts sans icônes */
 .alert{padding:12px 14px;border-radius:12px;background:#f7f7f8;border:1px solid #e6e7eb;margin:8px 0;font-size:.95rem}
 .alert.error{border-left:4px solid #d92d20;background:#fef3f2}
