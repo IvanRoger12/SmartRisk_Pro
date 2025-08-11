@@ -1,12 +1,10 @@
 import streamlit as st
-from src.ui import use_global_css, get_lang
-from i18n.strings import tr
-
 st.set_page_config(page_title="SmartRisk Pro", layout="wide", initial_sidebar_state="expanded")
 
-# CSS global + langue (à appeler tout en haut)
+from src.ui import use_global_css, get_lang
 use_global_css()
 lang = get_lang()
+
 
 # HERO
 st.markdown(f"""
