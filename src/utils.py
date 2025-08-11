@@ -1,49 +1,93 @@
-# utils métier & monitoring — écrit “comme Ivan”
-from __future__ import annotations
-import numpy as np, pandas as pd
+# -- crée src/__init__.py et src/utils.py
+from pathlib import Path
 
-def compute_profit(y_true: np.ndarray, proba: np.ndarray, thresh: float, revenue_ok: float, loss_bad: float):
-    y_pred = (proba >= thresh).astype(int)  # 1 = risque => on refuse
-    accept = (y_pred == 0)
-    nb_ok  = int(((y_true == 0) & accept).sum())
-    nb_bad = int(((y_true == 1) & accept).sum())
-    profit = nb_ok * revenue_ok - nb_bad * loss_bad
-    return profit, nb_ok, nb_bad, int(accept.sum())
+Path("src").mkdir(parents=True, exist_ok=True)
+Path("src/__init__.py").write_text("", encoding="utf-8")
 
-def find_best_threshold(y_true: np.ndarray, proba: np.ndarray, revenue_ok: float, loss_bad: float, grid: int = 101):
-    t_grid = np.linspace(0.01, 0.99, grid)
-    scores = [compute_profit(y_true, proba, t, revenue_ok, loss_bad)[0] for t in t_grid]
-    i = int(np.argmax(scores))
-    return float(t_grid[i]), float(scores[i])
+utils_code = r'''
+import numpy as np
+import pandas as pd
+from typing import Tuple
 
+# -------- Qualité des données
 def quality_report(df: pd.DataFrame) -> pd.DataFrame:
-    rep = pd.DataFrame({
-        "dtype": df.dtypes.astype(str),
-        "missing_pct": df.isna().mean() * 100,
-        "inf_count": np.isinf(df.select_dtypes(include=[float,int])).sum() if len(df) else 0,
-        "n_unique": df.nunique(),
-        "std": df.select_dtypes(include=[float,int]).std()
-    })
-    rep["zero_var"] = rep["std"].fillna(0).eq(0)
-    return rep.sort_values("missing_pct", ascending=False)
+    out = []
+    n = len(df)
+    for c in df.columns:
+        s = df[c]
+        dtype = str(s.dtype)
+        na = int(s.isna().sum())
+        na_pct = round(na / n * 100, 2) if n else 0.0
+        nunique = int(s.nunique(dropna=True))
+        zero_var = (s.nunique(dropna=True) <= 1)
+        n_inf = int(np.isinf(s.replace({np.inf: np.nan, -np.inf: np.nan})).sum()) if np.issubdtype(s.dtype, np.number) else 0
+        out.append({
+            "feature": c,
+            "dtype": dtype,
+            "missing_cnt": na,
+            "missing_pct": na_pct,
+            "nunique": nunique,
+            "zero_variance": bool(zero_var),
+            "n_infinite": n_inf,
+        })
+    rep = pd.DataFrame(out).sort_values(["missing_pct","feature"], ascending=[False, True]).reset_index(drop=True)
+    return rep
 
-def psi(expected: pd.Series, actual: pd.Series, bins: int = 10) -> float:
-    exp = expected.dropna().astype(float); act = actual.dropna().astype(float)
-    if exp.empty or act.empty: return np.nan
-    # bins sur les quantiles du jeu “expected”
-    q = np.linspace(0, 1, bins + 1)
-    cuts = np.unique(np.quantile(exp, q))
-    exp_counts = np.histogram(exp, bins=cuts)[0]; act_counts = np.histogram(act, bins=cuts)[0]
-    exp_pct = np.clip(exp_counts / max(exp_counts.sum(), 1), 1e-6, 1)
-    act_pct = np.clip(act_counts / max(act_counts.sum(), 1), 1e-6, 1)
-    return float(np.sum((act_pct - exp_pct) * np.log(act_pct / exp_pct)))
+# -------- PSI (Population Stability Index)
+def _psi_for_arrays(base: np.ndarray, cur: np.ndarray, bins: int = 10) -> float:
+    base = base[~np.isnan(base)]
+    cur  = cur[~np.isnan(cur)]
+    if base.size == 0 or cur.size == 0:
+        return 0.0
+    # bornes = quantiles de la base
+    qs = np.linspace(0, 1, bins + 1)
+    try:
+        edges = np.unique(np.quantile(base, qs))
+    except Exception:
+        return 0.0
+    if edges.size < 3:  # pas assez de variabilité
+        return 0.0
+    # histogrammes normalisés
+    base_hist, _ = np.histogram(base, bins=edges)
+    cur_hist,  _ = np.histogram(cur,  bins=edges)
+    base_ratio = base_hist / np.maximum(base_hist.sum(), 1)
+    cur_ratio  = cur_hist  / np.maximum(cur_hist.sum(), 1)
+    # epsilon pour éviter /0 et log(0)
+    eps = 1e-6
+    base_ratio = np.clip(base_ratio, eps, None)
+    cur_ratio  = np.clip(cur_ratio,  eps, None)
+    psi = np.sum((base_ratio - cur_ratio) * np.log(base_ratio / cur_ratio))
+    return float(psi)
 
-def psi_frame(expected_df: pd.DataFrame, actual_df: pd.DataFrame, bins: int = 10) -> pd.DataFrame:
-    cols = [c for c in expected_df.columns if c in actual_df.columns]
-    res = []
-    for c in cols:
-        if pd.api.types.is_numeric_dtype(expected_df[c]) and pd.api.types.is_numeric_dtype(actual_df[c]):
-            res.append({"feature": c, "psi": psi(expected_df[c], actual_df[c], bins)})
-    out = pd.DataFrame(res).sort_values("psi", ascending=False)
-    out["severity"] = pd.cut(out["psi"], bins=[-np.inf, 0.1, 0.25, np.inf], labels=["OK", "Alerte", "Fort"])
-    return out
+def psi_frame(base_df: pd.DataFrame, cur_df: pd.DataFrame, bins: int = 10) -> pd.DataFrame:
+    common = [c for c in base_df.columns if c in cur_df.columns]
+    rows = []
+    for c in common:
+        if pd.api.types.is_numeric_dtype(base_df[c]) and pd.api.types.is_numeric_dtype(cur_df[c]):
+            psi = _psi_for_arrays(base_df[c].to_numpy(dtype=float), cur_df[c].to_numpy(dtype=float), bins=bins)
+            rows.append({"feature": c, "psi": round(psi, 4)})
+    return pd.DataFrame(rows).sort_values("psi", ascending=False).reset_index(drop=True)
+
+# -------- Seuil & profit
+def compute_profit(y_true: np.ndarray, proba: np.ndarray, thr: float, revenue_ok: float, loss_bad: float) -> Tuple[float,int,int,int]:
+    y_true = np.asarray(y_true).astype(int)
+    proba  = np.asarray(proba, dtype=float)
+    # Règle: on ACCEPTE si proba défaut < seuil
+    accept_mask = proba < thr
+    n_accept = int(accept_mask.sum())
+    n_ok_accepted  = int(((y_true == 0) & accept_mask).sum())
+    n_bad_accepted = int(((y_true == 1) & accept_mask).sum())
+    profit = n_ok_accepted * float(revenue_ok) - n_bad_accepted * float(loss_bad)
+    return float(profit), n_ok_accepted, n_bad_accepted, n_accept
+
+def find_best_threshold(y_true: np.ndarray, proba: np.ndarray, revenue_ok: float, loss_bad: float) -> Tuple[float, float]:
+    grid = np.linspace(0.01, 0.99, 199)
+    best_thr, best_profit = 0.5, -1e18
+    for t in grid:
+        p, *_ = compute_profit(y_true, proba, float(t), revenue_ok, loss_bad)
+        if p > best_profit:
+            best_profit, best_thr = p, float(t)
+    return best_thr, best_profit
+'''
+Path("src/utils.py").write_text(utils_code.strip() + "\n", encoding="utf-8")
+print("✅ src/utils.py créé")
