@@ -1,24 +1,24 @@
-import streamlit as st, pandas as pd, joblib, plotly.graph_objects as go
-import shap, numpy as np
-
+import streamlit as st, pandas as pd, numpy as np, joblib, plotly.graph_objects as go
+import shap
+from i18n.strings import tr
 lang = st.session_state.get("lang","FR")
-st.header("Scoring individuel")
+
+st.header(tr("nav_score", lang))
 
 @st.cache_resource
-def load_model(): return joblib.load("models/pipeline.joblib")
-
+def load_model():
+    return joblib.load("models/pipeline.joblib")
 try:
     pipe = load_model()
 except Exception:
-    st.error("Modèle introuvable. Lance d'abord : python src/train.py")
-    st.stop()
+    st.error(tr("needs_model", lang)); st.stop()
 
 with st.form("form"):
     col1, col2, col3 = st.columns(3)
     with col1:
-        MonthlyIncome = st.number_input("MonthlyIncome", 0, 100000, 3000, step=100)
+        MonthlyIncome = st.number_input("MonthlyIncome", 0, 200000, 3000, step=100)
         DebtRatio = st.number_input("DebtRatio", 0.0, 5.0, 0.35, step=0.01)
-        age = st.number_input("age", 18, 100, 35)
+        age = st.number_input("Age", 18, 100, 35)
     with col2:
         N30 = st.number_input("NumberOfTime30-59DaysPastDueNotWorse", 0, 50, 0)
         N60 = st.number_input("NumberOfTime60-89DaysPastDueNotWorse", 0, 50, 0)
@@ -30,47 +30,52 @@ with st.form("form"):
         NDeps = st.number_input("NumberOfDependents", 0, 20, 0)
     go_btn = st.form_submit_button("Scorer")
 
-if not go_btn: st.stop()
+if go_btn:
+    x = pd.DataFrame([{
+        "MonthlyIncome": MonthlyIncome, "DebtRatio": DebtRatio, "age": age,
+        "NumberOfTime30-59DaysPastDueNotWorse": N30, "NumberOfTime60-89DaysPastDueNotWorse": N60,
+        "NumberOfTimes90DaysLate": N90, "RevolvingUtilizationOfUnsecuredLines": Util,
+        "NumberOfOpenCreditLinesAndLoans": NOpen, "NumberRealEstateLoansOrLines": NRE,
+        "NumberOfDependents": NDeps
+    }])
 
-row = pd.DataFrame([{
-    "MonthlyIncome": MonthlyIncome,
-    "DebtRatio": DebtRatio,
-    "age": age,
-    "NumberOfTime30-59DaysPastDueNotWorse": N30,
-    "NumberOfTime60-89DaysPastDueNotWorse": N60,
-    "NumberOfTimes90DaysLate": N90,
-    "RevolvingUtilizationOfUnsecuredLines": Util,
-    "NumberOfOpenCreditLinesAndLoans": NOpen,
-    "NumberRealEstateLoansOrLines": NRE,
-    "NumberOfDependents": NDeps
-}])
+    pd_hat = float(pipe.predict_proba(x)[:,1][0])
+    score = int((1 - pd_hat)*100)
 
-p = pipe.predict_proba(row)[:,1][0]
-score = int((1 - p)*100)
+    c1, c2 = st.columns([1.2,1])
+    with c1:
+        fig = go.Figure(go.Indicator(
+            mode="gauge+number", value=score, title={"text": tr("score", lang)},
+            gauge={'axis': {'range': [0, 100]}, 'bar': {'thickness': 0.35},
+                   'steps': [{'range':[0,40],'color':'#fdecea'},
+                             {'range':[40,70],'color':'#fff4cc'},
+                             {'range':[70,100],'color':'#e6f4ea'}]}))
+        st.plotly_chart(fig, use_container_width=True)
+        st.caption(f"{tr('defprob', lang)} : {pd_hat:.3f}")
 
-st.metric("Score (0–100)", score)
-st.caption(f"Probabilité de défaut : {p:.3f}")
+    with c2:
+        exp_loss_rate = pd_hat
+        gross_margin_rate = 0.18
+        safe_limit = max(0, int((gross_margin_rate / max(exp_loss_rate,1e-6)) * 1000))
+        st.markdown("Proposition")
+        st.write(f"Limite indicative: {safe_limit} € (démo)")
+        tips=[]
+        if DebtRatio>0.4: tips.append("Réduire le DebtRatio sous 40%.")
+        if N30+N60+N90>0: tips.append("Supprimer les retards de paiement.")
+        if Util>0.6: tips.append("Baisser l'utilisation du revolving <60%.")
+        st.info(("; ".join(tips)) if tips else tr("healthy", lang))
 
-fig = go.Figure(go.Indicator(mode="gauge+number", value=score, title={"text":"Score (0–100)"},
-    gauge={'axis': {'range': [0, 100]}, 'bar': {'thickness': 0.3},
-           'steps': [{'range':[0,40],'color':'#fce8e6'},{'range':[40,70],'color':'#fff4cc'},{'range':[70,100],'color':'#e6f4ea'}]}))
-st.plotly_chart(fig, use_container_width=True)
+    st.subheader("What-if")
+    delta_debt = st.slider("Variation de DebtRatio", -0.3, 0.3, -0.05, step=0.01)
+    x2 = x.copy(); x2["DebtRatio"] = np.clip(x2["DebtRatio"] + delta_debt, 0, 5)
+    pd2 = float(pipe.predict_proba(x2)[:,1][0]); score2 = int((1-pd2)*100)
+    st.write(f"Si DebtRatio change de {delta_debt:+.2f} → score {score2} (PD {pd2:.3f})")
 
-tips=[]
-if DebtRatio>0.4: tips.append("Réduire DebtRatio < 40%")
-if N30>0 or N60>0 or N90>0: tips.append("Éviter les retards de paiement")
-if Util>0.6: tips.append("Baisser l'utilisation du crédit renouvelable")
-st.info("Recommandations : " + ("; ".join(tips) if tips else "Profil sain"))
-
-# SHAP local (explication individuelle)
-try:
-    clf = pipe.named_steps["clf"]
-    background = np.zeros((1, row.shape[1]))  # baseline neutre
-    explainer = shap.TreeExplainer(clf)
-    shap_values = explainer.shap_values(row)[1] if isinstance(explainer.shap_values(row), list) else explainer.shap_values(row)
-    st.subheader("Explication locale (SHAP)")
-    shap.initjs()
-    st.pyplot(shap.force_plot(explainer.expected_value[1] if isinstance(explainer.expected_value, list) else explainer.expected_value,
-                               shap_values, row, matplotlib=True, show=False, figsize=(8,1.8)))
-except Exception:
-    st.warning("SHAP local indisponible dans cet environnement. Teste en local si besoin.")
+    try:
+        explainer = shap.TreeExplainer(pipe.named_steps["clf"])
+        x_imp = pd.DataFrame(pipe.named_steps["impute"].transform(x), columns=x.columns)
+        sv = explainer(x_imp)
+        shap.plots.bar(sv[0], show=False)
+        st.pyplot(bbox_inches="tight")
+    except Exception:
+        st.caption("Explications locales indisponibles ici (SHAP).")
