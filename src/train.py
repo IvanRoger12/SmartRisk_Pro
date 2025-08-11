@@ -1,39 +1,13 @@
 import os, joblib, pandas as pd
-from sklearn.model_selection import train_test_split, StratifiedKFold
+from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import roc_auc_score
 from lightgbm import LGBMClassifier
-import numpy as np
 
 RAW = "data/raw/cs-training.csv"
 MODEL = "models/pipeline.joblib"
-
-def train_cv(X, y, n_splits=5, seed=42):
-    skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=seed)
-    oof = np.zeros(len(y))
-    models = []
-    for fold, (tr, va) in enumerate(skf.split(X, y), 1):
-        Xtr, Xva = X.iloc[tr], X.iloc[va]
-        ytr, yva = y.iloc[tr], y.iloc[va]
-        pipe = Pipeline([
-            ("impute", SimpleImputer(strategy="median")),
-            ("clf", LGBMClassifier(
-                n_estimators=600, learning_rate=0.03,
-                subsample=0.9, colsample_bytree=0.9,
-                max_depth=-1, num_leaves=31,
-                random_state=seed+fold, n_jobs=-1
-            ))
-        ])
-        pipe.fit(Xtr, ytr)
-        proba = pipe.predict_proba(Xva)[:,1]
-        oof[va] = proba
-        auc = roc_auc_score(yva, proba)
-        print(f"Fold {fold}: AUC={auc:.4f}")
-        models.append(pipe)
-    print("OOF AUC:", roc_auc_score(y, oof))
-    # on garde le dernier modèle (ou on peut en empiler un, mais ici simple)
-    return models[-1]
+BASELINE = "models/baseline_sample.parquet"  # échantillon de référence pour le PSI
 
 def main():
     if not os.path.exists(RAW):
@@ -41,10 +15,31 @@ def main():
     df = pd.read_csv(RAW)
     y = df["SeriousDlqin2yrs"].astype(int)
     X = df.drop(columns=["SeriousDlqin2yrs"])
-    os.makedirs("models", exist_ok=True)
-    model = train_cv(X, y)
-    joblib.dump(model, MODEL)
+
+    Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
+
+    pipe = Pipeline([
+        ("impute", SimpleImputer(strategy="median")),
+        ("clf", LGBMClassifier(
+            n_estimators=500, learning_rate=0.05,
+            subsample=0.9, colsample_bytree=0.9,
+            max_depth=-1, random_state=42
+        ))
+    ])
+
+    pipe.fit(Xtr, ytr)
+    proba = pipe.predict_proba(Xte)[:,1]
+    auc = roc_auc_score(yte, proba)
+    print("AUC valid:", round(auc,4))
+
+    os.makedirs(os.path.dirname(MODEL), exist_ok=True)
+    joblib.dump(pipe, MODEL)
     print("Saved →", MODEL)
+
+    # baseline PSI (sample 20k max) — je stocke seulement les features numériques
+    base = X.select_dtypes(include=["number"]).sample(min(20000, len(X)), random_state=42)
+    base.to_parquet(BASELINE, index=False)
+    print("Saved PSI baseline →", BASELINE)
 
 if __name__ == "__main__":
     main()
