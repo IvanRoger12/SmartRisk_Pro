@@ -1,20 +1,20 @@
 import streamlit as st
 from i18n.strings import tr
 
-st.set_page_config(page_title="SmartRisk Pro", page_icon="💳", layout="wide")
+st.set_page_config(page_title="SmartRisk Pro", layout="wide")
 
 LANG_OPTIONS = {
-    "🇫🇷 Français": "FR",
-    "🇬🇧 English": "EN",
-    "🇪🇸 Español": "ES",
-    "🇮🇹 Italiano": "IT",
-    "🇨🇳 中文": "ZH",
+    "Français": "FR",
+    "English": "EN",
+    "Español": "ES",
+    "Italiano": "IT",
+    "中文": "ZH",
 }
 if "lang" not in st.session_state:
     st.session_state["lang"] = "FR"
 with st.sidebar:
-    st.markdown("### 🌍 Lang / Language")
-    choice = st.selectbox(" ", list(LANG_OPTIONS.keys()), index=0, label_visibility="collapsed")
+    st.markdown("### Lang / Language")
+    choice = st.selectbox("", list(LANG_OPTIONS.keys()), index=0, label_visibility="collapsed")
     st.session_state["lang"] = LANG_OPTIONS[choice]
 lang = st.session_state["lang"]
 
@@ -46,19 +46,19 @@ st.markdown(f"""
   <h1>SmartRisk Pro — {tr("brand", lang).split("—")[-1].strip()}</h1>
   <div class="small">{tr("subtitle", lang)}</div>
   <div class="badges">
-    <span>⚡ Real-time scoring</span><span>🧠 Explainable AI</span>
-    <span>📊 KPI Dashboard</span><span>💰 Profit-aware Threshold</span><span>🌍 FR/EN/ES/IT/ZH</span>
+    <span>Real-time scoring</span><span>Explainable AI</span>
+    <span>KPI Dashboard</span><span>Profit-aware Threshold</span><span>FR/EN/ES/IT/ZH</span>
   </div>
   <div class="cta">
-    <a class="primary" href="#go" target="_self">🚀 {tr("cta_start", lang)}</a>
-    <a href="https://github.com/IvanRoger12/SmartRisk_Pro" target="_blank">⭐ GitHub</a>
-    <a href="mailto:nfindaroger@gmail.com">📩 Ivan NFINDA</a>
+    <a class="primary" href="#go" target="_self">{tr("cta_start", lang)}</a>
+    <a href="https://github.com/IvanRoger12/SmartRisk_Pro" target="_blank">GitHub</a>
+    <a href="mailto:nfindaroger@gmail.com">Contact</a>
   </div>
 </div>
 """, unsafe_allow_html=True)
 
 c1, c2, c3 = st.columns(3)
-with c1: st.markdown('<div class="card"><div style="font-size:1.8rem;font-weight:800">0.80–0.85</div><div>AUC (réf. Kaggle)</div></div>', unsafe_allow_html=True)
+with c1: st.markdown('<div class="card"><div style="font-size:1.8rem;font-weight:800">0.80–0.85</div><div>AUC (dataset public)</div></div>', unsafe_allow_html=True)
 with c2: st.markdown('<div class="card"><div style="font-size:1.8rem;font-weight:800">~10 ms</div><div>Latence scoring</div></div>', unsafe_allow_html=True)
 with c3: st.markdown('<div class="card"><div style="font-size:1.8rem;font-weight:800">5</div><div>Langues UI</div></div>', unsafe_allow_html=True)
 
@@ -67,17 +67,17 @@ st.write("")
 
 c1, c2, c3 = st.columns(3)
 with c1:
-    st.markdown("#### 🔎 " + tr("nav_eda", lang))
+    st.markdown("#### " + tr("nav_eda", lang))
     st.markdown(tr("home_eda", lang))
-    st.page_link("pages/02_🔎_Analyse_exploratoire.py", label=tr("open_eda", lang), icon="🔎")
+    st.page_link("pages/02_Analyse_exploratoire.py", label=tr("open_eda", lang))
 with c2:
-    st.markdown("#### 📊 " + tr("nav_score", lang))
+    st.markdown("#### " + tr("nav_score", lang))
     st.markdown(tr("home_score", lang))
-    st.page_link("pages/03_📊_Scoring_individuel.py", label=tr("open_score", lang), icon="📊")
+    st.page_link("pages/03_Scoring_individuel.py", label=tr("open_score", lang))
 with c3:
-    st.markdown("#### 💰 Seuil & Profit")
+    st.markdown("#### Seuil & Profit")
     st.markdown("Optimisez le seuil selon coût du risque et marge.")
-    st.page_link("pages/05_📈_Métriques_&_Explications.py", label="Voir les métriques & seuil", icon="📈")
+    st.page_link("pages/05_Metriques_Explications.py", label="Voir les métriques & seuil")
 
 st.divider()
-st.caption(f"© {tr('author', lang)} — demo éducationnelle, non contractuelle.")
+st.caption(f"© {tr('author', lang)} — démo éducationnelle, non contractuelle.")
