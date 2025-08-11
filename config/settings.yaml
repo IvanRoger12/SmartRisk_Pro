@@ -1,0 +1,6 @@
+costs:
+  revenue_ok: 400
+  loss_bad: 2000
+psi_thresholds:
+  warn: 0.10
+  strong: 0.25
