@@ -1,88 +1,86 @@
-import io, glob, requests
-import pandas as pd
+# pages/07_🛡️_Qualité_&_Drift_(PSI).py
+
 import streamlit as st
-import plotly.express as px
+import pandas as pd
+from src.utils import quality_report, psi_frame
 
-st.header("Indicateurs OCDE")
-st.caption("Charge un CSV OCDE local ou colle une URL CSV de l’API OCDE.")
+st.set_page_config(layout="wide")
+st.header("🛡️ Qualité des données & Drift (PSI)")
 
-@st.cache_data(show_spinner=False, ttl=3600)
-def load_csv_from_url(url: str) -> pd.DataFrame:
-    r = requests.get(url, timeout=20); r.raise_for_status()
-    try:
-        return pd.read_csv(io.BytesIO(r.content))
-    except Exception:
-        return pd.read_csv(io.BytesIO(r.content), sep=";", encoding="latin-1")
+st.caption(
+    "Comparaison du jeu **courant** au **baseline d'entraînement** pour détecter le drift (PSI) "
+    "et les problèmes qualité (valeurs manquantes, variances nulles, inf)."
+)
 
-@st.cache_data(show_spinner=False)
-def load_csv_from_path(path: str) -> pd.DataFrame:
-    try:
-        return pd.read_csv(path)
-    except Exception:
-        return pd.read_csv(path, sep=";", encoding="latin-1")
-
-tab1, tab2 = st.tabs(["Fichier local","URL API"])
-
-df = None
-with tab1:
-    candidates = sorted(glob.glob("data/external/oecd/*.csv"))
-    if candidates:
-        choice = st.selectbox("Fichiers trouvés", ["—"] + candidates)
-        if choice and choice != "—":
-            df = load_csv_from_path(choice)
-    uploaded = st.file_uploader("Uploader un CSV OCDE", type=["csv"])
-    if uploaded: df = pd.read_csv(uploaded)
-
-with tab2:
-    url = st.text_input("URL CSV (export OCDE)", placeholder="https://stats.oecd.org/...csv")
-    if url:
-        try: df = load_csv_from_url(url)
-        except Exception as e: st.error(f"URL invalide ou indisponible : {e}")
-
-if df is None:
-    st.stop()
-
-# choix colonnes
-time_candidates    = ["TIME_PERIOD","TIME","Year","year","DATE","Time","ObsTime"]
-value_candidates   = ["Value","OBS_VALUE","value","obs_value","Data","OBS","Observation Value"]
-country_candidates = ["LOCATION","Country","REF_AREA","GEO","LOCATION_NAME","Area","Country Name"]
-indic_candidates   = ["SUBJECT","INDICATOR","MEASURE","Indicator","Series","Subject","INDICATOR_ID"]
-
-def pick(cols, dfcols):
-    for c in cols:
-        if c in dfcols: return c
-    return None
-
-c1,c2,c3,c4 = st.columns(4)
-time_col    = c1.selectbox("Colonne temps",    ["—"]+df.columns.tolist(), index=(["—"]+df.columns.tolist()).index(pick(time_candidates,df.columns)) if pick(time_candidates,df.columns) in df.columns else 0)
-value_col   = c2.selectbox("Colonne valeur",   ["—"]+df.columns.tolist(), index=(["—"]+df.columns.tolist()).index(pick(value_candidates,df.columns)) if pick(value_candidates,df.columns) in df.columns else 0)
-country_col = c3.selectbox("Colonne pays",     ["—"]+df.columns.tolist(), index=(["—"]+df.columns.tolist()).index(pick(country_candidates,df.columns)) if pick(country_candidates,df.columns) in df.columns else 0)
-indic_col   = c4.selectbox("Colonne indicateur (opt.)", ["—"]+df.columns.tolist(), index=(["—"]+df.columns.tolist()).index(pick(indic_candidates,df.columns)) if pick(indic_candidates,df.columns) in df.columns else 0)
-
-if time_col == "—" or value_col == "—":
-    st.error("Choisis au minimum la colonne temps et la colonne valeur.")
-    st.stop()
-
-work = df.copy()
-work[time_col] = work[time_col].astype(str)
-
-ff1, ff2, ff3 = st.columns(3)
-countries = ff1.multiselect("Pays", sorted(work[country_col].dropna().astype(str).unique())) if country_col!="—" else []
-indics    = ff2.multiselect("Indicateur", sorted(work[indic_col].dropna().astype(str).unique())) if indic_col!="—" else []
-
-# période (si année numérique)
+# Baseline sauvegardée au training
+BASELINE = "models/baseline_sample.parquet"
 try:
-    years = sorted(list(map(int, work[time_col].astype(str).unique())))
-    y_start, y_end = ff3.slider("Période (année)", min_value=min(years), max_value=max(years), value=(min(years), max(years)))
-    work = work[work[time_col].astype(int).between(y_start, y_end)]
+    base = pd.read_parquet(BASELINE)
 except Exception:
-    pass
+    st.error(
+        "Baseline PSI introuvable. Ré-entraînez (src/train.py) pour générer "
+        "`models/baseline_sample.parquet`."
+    )
+    st.stop()
 
-if countries: work = work[work[country_col].astype(str).isin(countries)]
-if indics:    work = work[work[indic_col].astype(str).isin(indics)]
+uploaded = st.file_uploader(
+    "Jeu courant (CSV, mêmes colonnes numériques que le training)", type=["csv"]
+)
+if not uploaded:
+    st.info("Chargez un fichier pour lancer l'analyse.")
+    st.stop()
 
-color_col = country_col if country_col!="—" else (indic_col if indic_col!="—" else None)
-fig = px.line(work.sort_values(time_col), x=time_col, y=value_col, color=color_col, markers=False, title="Évolution")
-st.plotly_chart(fig, use_container_width=True)
-st.dataframe(work.head(50))
-st.download_button("Télécharger les données filtrées", work.to_csv(index=False).encode("utf-8"), "oecd_filtered.csv", "text/csv")
+cur = pd.read_csv(uploaded)
+
+# Sous-ensembles numériques avec intersection des colonnes
+cur_num_cols = cur.select_dtypes(include=["number"]).columns
+inter_cols = [c for c in cur_num_cols if c in base.columns]
+if not inter_cols:
+    st.error(
+        "Aucune colonne numérique commune entre votre fichier et le baseline. "
+        "Vérifiez le schéma et les noms de colonnes."
+    )
+    st.stop()
+
+cur_num = cur[inter_cols]
+base_num = base[inter_cols]
+
+# ---- Qualité des données
+st.subheader("Qualité des données")
+qr = quality_report(cur)
+st.dataframe(qr, use_container_width=True)
+st.download_button(
+    "Télécharger rapport qualité (CSV)",
+    qr.to_csv(index=False),
+    file_name="data_quality_report.csv",
+    mime="text/csv",
+)
+
+# ---- Drift PSI
+st.subheader("Drift — Population Stability Index (PSI)")
+psi_df = psi_frame(base_num, cur_num, bins=10)
+st.dataframe(psi_df, use_container_width=True)
+
+# petit graphe barre PSI
+if not psi_df.empty:
+    st.bar_chart(psi_df.set_index("feature")["psi"])
+
+st.download_button(
+    "Télécharger rapport PSI (CSV)",
+    psi_df.to_csv(index=False),
+    file_name="psi_report.csv",
+    mime="text/csv",
+)
+
+# ---- Alertes lisibles
+alerte = psi_df.query("psi >= 0.1 and psi < 0.25")
+fort   = psi_df.query("psi >= 0.25")
+
+if not fort.empty:
+    st.error("🔴 Drift FORT sur : " + ", ".join(fort["feature"].tolist()))
+elif not alerte.empty:
+    st.warning("🟠 Drift à surveiller sur : " + ", ".join(alerte["feature"].tolist()))
+else:
+    st.success("🟢 Aucun drift significatif (PSI < 0.1)")
+
+st.caption("Règles usuelles PSI : < 0.1 OK, 0.1–0.25 Alerte, > 0.25 Fort.")
