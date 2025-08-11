@@ -29,25 +29,21 @@ proba = pipe.predict_proba(X)[:,1]
 auc_roc = roc_auc_score(y, proba)
 st.metric("AUC ROC", f"{auc_roc:.3f}")
 
-# paramètres métier
 colA, colB = st.columns(2)
 with colA:  revenue = st.number_input("Marge par client sain (€)", 0, 10000, 400)
 with colB:  loss    = st.number_input("Perte si défaut (€)", 0, 20000, 2000)
 
-# seuil optimal (profit)
 t_opt, best_profit = find_best_threshold(y, proba, revenue, loss)
 st.success(f"Seuil optimal (profit): {t_opt:.2f} | Profit estimé: {best_profit:,.0f} €".replace(",", " "))
 
-thresh = st.slider("Seuil d'acceptation (1=plus strict)", 0.0, 1.0, float(t_opt), step=0.01)
+thresh = st.slider("Seuil d'acceptation (1 = plus strict)", 0.0, 1.0, float(t_opt), step=0.01)
 
-# métriques + profit au seuil choisi
 profit, nb_ok, nb_bad, accepted = compute_profit(y, proba, thresh, revenue, loss)
 tn, fp, fn, tp = confusion_matrix(y, (proba>=thresh).astype(int)).ravel()
 c1,c2,c3,c4 = st.columns(4)
 c1.metric("Acceptés", accepted); c2.metric("OK acceptés", nb_ok); c3.metric("Bad acceptés", nb_bad)
 c4.metric("Profit estimé", f"{profit:,.0f} €".replace(",", " "))
 
-# courbes
 fpr,tpr,_=roc_curve(y, proba)
 fig = go.Figure()
 fig.add_trace(go.Scatter(x=fpr, y=tpr, name=f"ROC AUC={auc_roc:.2f}"))
@@ -60,9 +56,7 @@ fig2 = go.Figure(go.Scatter(x=rec, y=prec, name=f"PR AUC={pr_auc:.2f}"))
 fig2.update_layout(xaxis_title="Recall", yaxis_title="Precision"); st.plotly_chart(fig2, use_container_width=True)
 
 grid = np.linspace(0.01, 0.99, 60)
-profits=[]
-for t in grid:
-    profits.append(compute_profit(y, proba, float(t), revenue, loss)[0])
+profits=[compute_profit(y, proba, float(t), revenue, loss)[0] for t in grid]
 fig3 = go.Figure(go.Scatter(x=grid, y=profits, mode="lines+markers", name="Profit"))
 fig3.add_vline(x=thresh, line_dash="dash", annotation_text=f"Seuil {thresh:.2f}")
 fig3.update_layout(xaxis_title="Seuil (plus élevé = plus strict)", yaxis_title="Profit estimé (€)")
