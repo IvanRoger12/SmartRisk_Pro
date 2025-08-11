@@ -4,7 +4,7 @@ from src.ui import use_global_css, get_lang
 from i18n.strings import tr
 from src.utils import quality_report, psi_frame
 
-# style global + langue
+# Style global + langue
 use_global_css()
 lang = get_lang()
 
@@ -18,6 +18,7 @@ BASELINE = "models/baseline_sample.parquet"
 def load_baseline(path: str) -> pd.DataFrame:
     return pd.read_parquet(path)
 
+# Chargement baseline
 try:
     base = load_baseline(BASELINE)
 except Exception:
@@ -25,6 +26,7 @@ except Exception:
              "Baseline PSI introuvable. Ré-entraînez (src/train.py) pour générer models/baseline_sample.parquet.")
     st.stop()
 
+# Upload du jeu courant
 uploaded = st.file_uploader(tr("psi_upload", lang) or
                             "Jeu courant (CSV, mêmes colonnes numériques que le training)", type=["csv"])
 if not uploaded:
@@ -52,9 +54,12 @@ base_num = base[inter_cols]
 st.subheader(tr("psi_quality", lang) or "Qualité des données")
 qr = quality_report(cur)
 st.dataframe(qr, use_container_width=True)
-st.download_button(tr("download_quality", lang) or "Télécharger rapport qualité (CSV)",
-                   qr.to_csv(index=False).encode("utf-8"),
-                   file_name="data_quality_report.csv", mime="text/csv")
+st.download_button(
+    tr("download_quality", lang) or "Télécharger rapport qualité (CSV)",
+    qr.to_csv(index=False).encode("utf-8"),
+    file_name="data_quality_report.csv",
+    mime="text/csv",
+)
 
 # Drift PSI
 st.subheader("Drift — Population Stability Index (PSI)")
@@ -64,18 +69,25 @@ st.dataframe(psi_df, use_container_width=True)
 if not psi_df.empty:
     st.bar_chart(psi_df.set_index("feature")["psi"])
 
-st.download_button(tr("download_psi", lang) or "Télécharger rapport PSI (CSV)",
-                   psi_df.to_csv(index=False).encode("utf-8"),
-                   file_name="psi_report.csv", mime="text/csv")
+st.download_button(
+    tr("download_psi", lang) or "Télécharger rapport PSI (CSV)",
+    psi_df.to_csv(index=False).encode("utf-8"),
+    file_name="psi_report.csv",
+    mime="text/csv",
+)
 
-# Alertes (texte uniquement)
+# ---- Alertes sans icône (markdown + CSS)
 alert = psi_df.query("psi >= 0.1 and psi < 0.25")
 strong = psi_df.query("psi >= 0.25")
+
 if not strong.empty:
-    st.error((tr("psi_strong", lang) or "Drift fort sur : ") + ", ".join(strong["feature"]))
+    msg = (tr("psi_strong", lang) or "Drift fort sur : ") + ", ".join(strong["feature"])
+    st.markdown(f'<div class="alert error">{msg}</div>', unsafe_allow_html=True)
 elif not alert.empty:
-    st.warning((tr("psi_watch", lang) or "Drift à surveiller sur : ") + ", ".join(alert["feature"]))
+    msg = (tr("psi_watch", lang) or "Drift à surveiller sur : ") + ", ".join(alert["feature"])
+    st.markdown(f'<div class="alert warn">{msg}</div>', unsafe_allow_html=True)
 else:
-    st.success(tr("psi_ok", lang) or "Aucun drift significatif (PSI < 0.1)")
+    msg = tr("psi_ok", lang) or "Aucun drift significatif (PSI < 0.1)"
+    st.markdown(f'<div class="alert ok">{msg}</div>', unsafe_allow_html=True)
 
 st.caption(tr("psi_rules", lang) or "Règles usuelles PSI : < 0.1 OK, 0.1–0.25 Alerte, > 0.25 Fort.")
