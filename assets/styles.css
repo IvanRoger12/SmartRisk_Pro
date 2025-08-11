@@ -48,3 +48,8 @@ h2 { font-weight: 700; }
 [data-testid="stSidebar"] {
   border-right: 1px solid #eef2f7;
 }
+/* Alerts sans icônes */
+.alert{padding:12px 14px;border-radius:12px;background:#f7f7f8;border:1px solid #e6e7eb;margin:8px 0;font-size:.95rem}
+.alert.error{border-left:4px solid #d92d20;background:#fef3f2}
+.alert.warn{border-left:4px solid #dc6803;background:#fff7ed}
+.alert.ok{border-left:4px solid #16a34a;background:#f0fdf4}
